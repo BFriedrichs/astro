@@ -82,7 +82,23 @@ function makeRequestBody(req: NodeIncomingMessage): BodyProps {
 	}
 
 	// Return default body.
-	return asyncIterableToBodyProps(req);
+	return {
+		// @ts-expect-error
+		duplex: 'half',
+		body: new ReadableStream({
+			start: (controller) => {
+				return new Promise((resolve) => {
+					req.on('data', (chunk) => {
+						controller.enqueue(chunk);
+					});
+					req.on('end', () => {
+						controller.close();
+						resolve(controller);
+					});
+				})
+			}
+		}),
+	}
 }
 
 function asyncIterableToBodyProps(iterable: AsyncIterable<any>): BodyProps {
